@@ -273,6 +273,7 @@ EOF
     sync
 
     echo -e "${INFO} make.env file info:"
+    sed -i 's/flippy/yuanzheng/g' make.env
     cat make.env
 
     i=1
