@@ -1,0 +1,66 @@
+name: Clone Repository
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '00 08 * * 6'
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: github.event.repository.owner.id == github.event.sender.id
+
+    name: Update Repository
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [main]
+        
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install git subversion git-core wget
+        sudo timedatectl set-timezone "$TZ"
+        git config --global user.email "github-actions@ssss.fun"
+        git config --global user.name "github-actions[bot]"
+
+    - name: Clone Files
+      run: |
+        cd $GITHUB_WORKSPACE
+        chmod +x YUANZHENG.sh
+        git clone https://github.com/womade/openwrt_packit.git openwrt_packit
+        cd openwrt_packit
+        rm -Rf *
+        git rm --cache *
+        $GITHUB_WORKSPACE/YUANZHENG.sh
+        rm -rf ./*/.git
+        rm -f ./*/.gitattributes
+        rm -rf ./*/.svn
+        rm -rf ./*/.github
+        rm -rf ./*/.gitignore
+        exit 0
+
+    - name: Upload Files
+      env: 
+        GITHUB_TOKEN: ${{ secrets.R_TOKEN }}
+      run: |
+        [ -e $GITHUB_WORKSPACE/YUANZHENG.sh ] && cp $GITHUB_WORKSPACE/YUANZHENG.sh $GITHUB_WORKSPACE/openwrt_packit
+        cd $GITHUB_WORKSPACE/openwrt_packit
+        git add .
+        git commit -m "Update$(TZ='Asia/Shanghai' date +@%Y%m%d)"
+        git push --quiet "https://${{ secrets.R_TOKEN }}@github.com/womade/openwrt_packit.git" HEAD:${{matrix.target}}
+
+    - name: Delete workflow runs
+      uses: GitRML/delete-workflow-runs@main
+      with:
+        retain_days: 1
+        keep_minimum_runs: 3
