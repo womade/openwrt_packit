@@ -18,7 +18,4 @@ sed -i 's/master/main/g' openwrt_flippy.sh
 # WHOAMI
 sed -i 's/flippy/YY-ZHENG/g' openwrt_flippy.sh
 
-# KERNEL VERSION
-sed -i 's/-flippy-/-yuanzheng-/g' make.env
-
 exit 0
