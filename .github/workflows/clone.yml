@@ -3,7 +3,7 @@ name: Clone Repository
 on:
   workflow_dispatch:
   schedule:
-    - cron: '00 08 * * 6'
+    - cron: '00 08 1 * *'
 
 env:
   TZ: Asia/Shanghai
