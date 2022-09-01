@@ -466,7 +466,7 @@ function make_filesystem() {
                         echo "[${device_name}p${i}] 格式化成功"
                    fi
                    ;;
-             ext4) mkfs.ext4 -U ${fs_uuid} -L "${fs_label}" ${device_name}p${i}
+             ext4) mkfs.ext4 -U ${fs_uuid} -L "${fs_label}" -b 4k ${device_name}p${i}
                    if [ $? -ne 0 ];then
                         echo "[${device_name}p${i}] 格式化失败！"
                         detach_loopdev
@@ -1077,6 +1077,8 @@ function copy_supplement_files() {
         [ -n "$GETCPU_SCRIPT" ] && [ -f $GETCPU_SCRIPT ] && cp -v $GETCPU_SCRIPT ./bin/
         [ -n "$SYSINFO_SCRIPT" ] && [ -x ./bin/bash ] && [ -f "${SYSINFO_SCRIPT}" ] && cp -v "${SYSINFO_SCRIPT}" ./etc/profile.d/ && \
              sed -e "s/\/bin\/ash/\/bin\/bash/" -i ./etc/passwd && sed -e "s/\/bin\/ash/\/bin\/bash/" -i ./usr/libexec/login.sh
+        
+        [ -n "$BOARD_SCRIPT1" ] && [ -f $BOARD_SCRIPT1 ] && cp -v $BOARD_SCRIPT1 ./etc/board.d/
 
         [ -f ./etc/sysupgrade.conf ] && \
              cat >> ./etc/sysupgrade.conf <<EOF
