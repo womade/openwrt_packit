@@ -31,11 +31,9 @@ TGT_IMG="${WORK_DIR}/openwrt_${SOC}_${BOARD}_${OPENWRT_VER}_k${KERNEL_VERSION}${
 
 # patches、scripts
 ####################################################################
-REGULATORY_DB="${PWD}/files/regulatory.db.tar.gz"
 CPUSTAT_SCRIPT="${PWD}/files/cpustat"
 CPUSTAT_SCRIPT_PY="${PWD}/files/cpustat.py"
-CPUSTAT_PATCH="${PWD}/files/luci-admin-status-index-html.patch"
-CPUSTAT_PATCH_02="${PWD}/files/luci-admin-status-index-html-02.patch"
+INDEX_PATCH_HOME="${PWD}/files/index.html.patches"
 GETCPU_SCRIPT="${PWD}/files/getcpu"
 KMOD="${PWD}/files/kmod"
 KMOD_BLACKLIST="${PWD}/files/kmod_blacklist"
@@ -55,9 +53,6 @@ BANNER="${PWD}/files/banner"
 FMW_HOME="${PWD}/files/firmware"
 SMB4_PATCH="${PWD}/files/smb4.11_enable_smb1.patch"
 SYSCTL_CUSTOM_CONF="${PWD}/files/99-custom.conf"
-
-# 20200403 add
-SND_MOD="${PWD}/files/rk3328/snd-rk3328"
 
 # 20200709 add
 COREMARK="${PWD}/files/coremark.sh"
@@ -84,7 +79,7 @@ DOCKERD_PATCH="${PWD}/files/dockerd.patch"
 
 # 20200416 add
 FIRMWARE_TXZ="${PWD}/files/firmware_armbian.tar.xz"
-BOOTFILES_HOME="${PWD}/files/bootfiles/rockchip"
+BOOTFILES_HOME="${PWD}/files/bootfiles/rockchip/rk3328"
 GET_RANDOM_MAC="${PWD}/files/get_random_mac.sh"
 BOOTLOADER_IMG="${PWD}/files/rk3328/btld-rk3328.bin"
 
@@ -106,6 +101,8 @@ DDBR="${PWD}/files/openwrt-ddbr"
 # 20220225 add
 SSH_CIPHERS="aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,chacha20-poly1305@openssh.com"
 SSHD_CIPHERS="aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr"
+# 20221001 add
+MODULES_HOME="${PWD}/files/rk3588/modules.d"
 ####################################################################
 
 check_depends

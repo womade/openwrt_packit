@@ -35,7 +35,6 @@ TGT_IMG="${WORK_DIR}/openwrt_${SOC}_${BOARD}_${OPENWRT_VER}_k${KERNEL_VERSION}${
 
 # 补丁和脚本
 ###########################################################################
-REGULATORY_DB="${PWD}/files/regulatory.db.tar.gz"
 KMOD="${PWD}/files/kmod"
 KMOD_BLACKLIST="${PWD}/files/kmod_blacklist"
 MAC_SCRIPT1="${PWD}/files/fix_wifi_macaddr.sh"
@@ -43,8 +42,7 @@ MAC_SCRIPT2="${PWD}/files/find_macaddr.pl"
 MAC_SCRIPT3="${PWD}/files/inc_macaddr.pl"
 CPUSTAT_SCRIPT="${PWD}/files/cpustat"
 CPUSTAT_SCRIPT_PY="${PWD}/files/cpustat.py"
-CPUSTAT_PATCH="${PWD}/files/luci-admin-status-index-html.patch"
-CPUSTAT_PATCH_02="${PWD}/files/luci-admin-status-index-html-02.patch"
+INDEX_PATCH_HOME="${PWD}/files/index.html.patches"
 GETCPU_SCRIPT="${PWD}/files/getcpu"
 TTYD="${PWD}/files/ttyd"
 FLIPPY="${PWD}/files/scripts_deprecated/flippy_cn"
@@ -206,7 +204,7 @@ FDT=/dtb/amlogic/meson-sm1-x96-max-plus-100m.dtb
 #FDT=/dtb/amlogic/meson-sm1-tx3-qz-oc.dtb
 
 # 用于腾讯极光盒子3Pro ( Skyworth LB2004 A4091)
-#FDT=/deb/amlogic/meson-sm1-skyworth-lb2004-a4091.dtb
+#FDT=/dtb/amlogic/meson-sm1-skyworth-lb2004-a4091.dtb
 
 APPEND=root=UUID=${ROOTFS_UUID} rootfstype=btrfs rootflags=compress=zstd:${ZSTD_LEVEL} console=ttyAML0,115200n8 console=tty0 no_console_suspend consoleblank=0 fsck.fix=yes fsck.repair=yes net.ifnames=0 cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory swapaccount=1
 EOF

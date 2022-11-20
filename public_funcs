@@ -615,7 +615,6 @@ function extract_rootfs_files() {
    (
        cd $TGT_ROOT/lib/firmware
        mv *.hcd brcm/ 2>/dev/null
-       [ -f "$REGULATORY_DB" ] && tar xzf "$REGULATORY_DB"
        cd brcm
 
        # gtking/gtking pro 采用 bcm4356 wifi/bluetooth 模块
@@ -715,7 +714,7 @@ function extract_rockchip_boot_files() {
     echo -n "释放 Kernel zImage、uInitrd 及 dtbs 压缩包 ... "
     ( 
           cd ${TGT_BOOT} && \
-              cp "${BOOTFILES_HOME}"/* . && \
+              cp -v "${BOOTFILES_HOME}"/* . && \
               tar xzf "${BOOT_TGZ}" && \
               rm -f initrd.img-${KERNEL_VERSION} && \
               ln -sf vmlinuz-${KERNEL_VERSION} Image && \
@@ -944,36 +943,33 @@ EOF
 # CPU状态补丁
 function patch_admin_status_index_html() {
     echo "打补丁：[状态页面相关信息补丁] ... "
-    if [ "$PLATFORM" == "qemu-aarch64" ];then
-	(
-	   cd $TGT_ROOT/usr/lib/lua/luci/view/admin_status/ && \
-		   sed -e 's/pcdata(boardinfo.model or "?")/pcdata(boardinfo.model or "KVM Virtual Machine")/' -i index.htm && \
-		   sed -e "s/grep 'br-lan'/grep -E 'br-lan|eth0'/" -i index.htm
-        )
-    else
 	(
             cd $TGT_ROOT
             if [ ! -f usr/bin/perl ];then
                  echo "未发现 perl 实用程序, 放弃补丁!"
             else 
-                if [ -f "$CPUSTAT_PATCH" ];then 
-                     patch -p1 < ${CPUSTAT_PATCH} 
-                     if [ $? -ne 0 ];then
-                         echo "补丁失败!"
-                     else
-                         if [ -f "${CPUSTAT_PATCH_02}" ] ;then
-                             patch -p1 < ${CPUSTAT_PATCH_02}
-                             if [ $? -ne 0 ];then
-                                echo "补丁失败!"
-                             fi
-                         fi
-                     fi
+		if [ -d "${INDEX_PATCH_HOME}" ];then
+                   cp ./usr/lib/lua/luci/view/admin_status/index.htm ./usr/lib/lua/luci/view/admin_status/index.htm.bak
+		   ret=0
+		   for p in `echo ${INDEX_PATCH_HOME}/*.patch`;do
+                       patch -p1 < $p 
+		       if [ $? -ne 0 ];then
+                            echo "补丁失败，还原原始文件 ... "
+                            mv ./usr/lib/lua/luci/view/admin_status/index.htm.bak  ./usr/lib/lua/luci/view/admin_status/index.htm
+			    ret=1
+                            echo "已还原"
+			    break
+                       fi
+	           done
+		   if [ $ret -eq 0 ];then
+                        echo "补丁成功"
+			rm -f ./usr/lib/lua/luci/view/admin_status/index.htm.bak
+		   fi
                 fi
                 echo "完成"
             fi
             echo
         )
-    fi
 }
 
 # 写入 release 信息
@@ -1007,6 +1003,10 @@ EOF
             cat >> ./etc/flippy-openwrt-release <<EOF
 UBOOT_OVERLOAD=${UBOOT_WITHOUT_FIP}
 EOF
+        fi
+
+	if [ "${SOC}" == "rk3588" ];then
+            echo "LOCK_KERNEL=${LOCK_KERNEL}" >> ./etc/flippy-openwrt-release
         fi
     )
     cat $TGT_ROOT/etc/flippy-openwrt-release
@@ -1048,11 +1048,22 @@ function copy_supplement_files() {
         [ -n "$OPENWRT_UPDATE" ] && [ -f ${OPENWRT_UPDATE} ] && cp -v ${OPENWRT_UPDATE} ./usr/sbin/
 	[ -n "${DDBR}" ] && [ -f "${DDBR}" ] && cp -v ${DDBR} ./usr/sbin/
 
-        # 我家云, 风扇调速脚本
-        if [ "$PLATFORM" == "rockchip" ] && [ "$SOC" == "rk3328" ] && [ "$BOARD" == "l1pro" ] && [ -f "$PWM_FAN" ];then
-            cp -v $PWM_FAN ./usr/bin
-            echo "pwm_fan" > ./etc/modules.d/pwm_fan
-            sed -e "/exit/i\/usr/bin/pwm-fan.pl &" -i etc/rc.local
+        # 我家云, rock5b 风扇调速脚本
+        if [ "$PLATFORM" == "rockchip" ];then
+	    if [ "$SOC" == "rk3328" ] && [ "$BOARD" == "l1pro" ] && [ -f "$PWM_FAN" ];then
+                echo "该机型有pwm风扇接口，故添加风扇调速脚本 ... "
+                cp -v $PWM_FAN ./usr/bin
+                echo "pwm_fan" > ./etc/modules.d/pwm_fan
+                sed -e "/exit/i\/usr/bin/pwm-fan.pl &" -i etc/rc.local
+                echo "完成"
+            fi
+	    if [ "$SOC" == "rk3588" ] && [ "$BOARD" == "rock5b" ] && [ -f "$PWM_FAN" ];then
+                echo "该机型有pwm风扇接口，故添加风扇调速脚本 ... "
+                cp -v $PWM_FAN ./usr/bin
+                echo "pwm_fan" > ./etc/modules.d/pwm_fan
+                sed -e "/exit/i\/usr/bin/pwm-fan.pl &" -i etc/rc.local
+                echo "完成"
+            fi
         fi
 
         [ -n "$BAL_ETH_IRQ" ] && [ -f $BAL_ETH_IRQ ] && cp -v $BAL_ETH_IRQ ./usr/sbin && chmod 755 ./usr/sbin/balethirq.pl && \
@@ -1078,7 +1089,15 @@ function copy_supplement_files() {
         [ -n "$SYSINFO_SCRIPT" ] && [ -x ./bin/bash ] && [ -f "${SYSINFO_SCRIPT}" ] && cp -v "${SYSINFO_SCRIPT}" ./etc/profile.d/ && \
              sed -e "s/\/bin\/ash/\/bin\/bash/" -i ./etc/passwd && sed -e "s/\/bin\/ash/\/bin\/bash/" -i ./usr/libexec/login.sh
         
-        [ -n "$BOARD_SCRIPT1" ] && [ -f $BOARD_SCRIPT1 ] && cp -v $BOARD_SCRIPT1 ./etc/board.d/
+        [ -n "$BOARD_HOME" ] && [ -d $BOARD_HOME ] && cp -v $BOARD_HOME/* ./etc/board.d/
+
+	if [ -n "${RGB_HOME}" ] && [ -d ${RGB_HOME} ];then
+             cp -av ${RGB_HOME}/* ./
+	     # rgb custom config file
+	     if [ -n "${RGB_CONFIG}" ] && [ -f "${RGB_CONFIG}" ];then
+                 cp -v ${RGB_CONFIG} ./etc/config/rgb
+             fi
+        fi
 
         [ -f ./etc/sysupgrade.conf ] && \
              cat >> ./etc/sysupgrade.conf <<EOF
@@ -1160,7 +1179,7 @@ function adjust_openssh_config() {
 
 config rule
         option name 'drop-wan-ssh'
-        option src '*'
+        option src 'wan'
         option dest 'wan'
         option dest_port '22'
         option proto 'tcp'
@@ -1286,12 +1305,22 @@ ttyS0::askfirst:/usr/libexec/login.sh
 EOF
                          echo "完成"
                          ;;
-             rockchip)   cat > ./etc/inittab <<EOF
+             rockchip)   if [ "${SOC}" == rk3588 ];then
+                             cat > ./etc/inittab <<EOF
+::sysinit:/etc/init.d/rcS S boot
+::shutdown:/etc/init.d/rcS K shutdown
+tty1::askfirst:/usr/libexec/login.sh
+ttyS2::askfirst:/usr/libexec/login.sh
+ttyFIQ0::askfirst:/usr/libexec/login.sh
+EOF
+                         else
+                             cat > ./etc/inittab <<EOF
 ::sysinit:/etc/init.d/rcS S boot
 ::shutdown:/etc/init.d/rcS K shutdown
 tty1::askfirst:/usr/libexec/login.sh
 ttyS2::askfirst:/usr/libexec/login.sh
 EOF
+                         fi
                          echo "完成"
                          ;;
              amlogic)    cat > ./etc/inittab <<EOF
@@ -1305,6 +1334,7 @@ EOF
              qemu-aarch64)    cat > ./etc/inittab <<EOF
 ::sysinit:/etc/init.d/rcS S boot
 ::shutdown:/etc/init.d/rcS K shutdown
+tty1::askfirst:/usr/libexec/login.sh
 ttyAMA0::askfirst:/usr/libexec/login.sh
 EOF
                          echo "完成"
@@ -1514,8 +1544,14 @@ function adjust_kernel_env() {
             echo "完成"
         fi    
 
+	if [ -n "${MODULES_HOME}" ] && [ -d "${MODULES_HOME}" ];then
+            echo "启用自定义的内核模块 ... "
+	    cp -v ${MODULES_HOME}/* ./etc/modules.d/
+            echo "完成"
+        fi
+
         case $ps in 
-            allwinner_h6|rockchip_rk3328) 
+            allwinner_h6|rockchip_rk3328|rockchip_rk3568|rockchip_rk3588) 
                 echo -n "当前机型并未内置 broadcom 无线模块, 禁用 brcmfmac 驱动 ... "
                 mv -f ./etc/modules.d/brcm* ./etc/modules.d.remove/ 2>/dev/null
                 echo "完成"
@@ -1603,6 +1639,12 @@ function adjust_kernel_env() {
             echo "pwm_meson" > ./etc/modules.d/pwm_meson
             echo "完成"
         fi
+
+        if [ "$SOC" == "rk3568" ];then
+            echo -n "启用 GPU 驱动 ... "
+            echo "panfrost" > ./etc/modules.d/panfrost
+            echo "完成"
+        fi
     )
     echo "==============================================================================="
     echo "完成"
@@ -1653,15 +1695,21 @@ function write_uboot_to_disk() {
             echo "完成"
         fi
 
+	# rockchip的bootloader，统一从硬盘的第65个扇区开始至16MB这个范围
         if [ "$PLATFORM" == "rockchip" ] && [ -n "$BOOTLOADER_IMG" ] && [ -f "$BOOTLOADER_IMG" ];then
             echo "写入 bootloader ..."
-            echo "dd if=${BOOTLOADER_IMG} of=${TGT_DEV} conv=fsync,notrunc bs=1 count=442"
-            echo "dd if=${BOOTLOADER_IMG} of=${TGT_DEV} conv=fsync,notrunc bs=512 skip=1 seek=1"
-
-            dd if=${BOOTLOADER_IMG} of=${TGT_DEV} conv=fsync,notrunc bs=1 count=442
-            dd if=${BOOTLOADER_IMG} of=${TGT_DEV} conv=fsync,notrunc bs=512 skip=1 seek=1
-
+            local btld_home=${BOOTLOADER_IMG%/*}
+	    if [ -f "${btld_home}/idbloader.img" ] && [ -f "${btld_home}/u-boot.itb" ];then
+                echo "dd if=${btld_home}/idbloader.img of=${TGT_DEV} conv=fsync,notrunc bs=512 seek=64"
+                dd if=${btld_home}/idbloader.img of=${TGT_DEV} conv=fsync,notrunc bs=512 seek=64
+                echo "dd if=${btld_home}/u-boot.itb of=${TGT_DEV} conv=fsync,notrunc bs=512 seek=16384"
+                dd if=${btld_home}/u-boot.itb of=${TGT_DEV} conv=fsync,notrunc bs=512 seek=16384
+            else
+                echo "dd if=${BOOTLOADER_IMG} of=${TGT_DEV} conv=fsync,notrunc bs=512 skip=64 seek=64"
+                dd if=${BOOTLOADER_IMG} of=${TGT_DEV} conv=fsync,notrunc bs=512 skip=64 seek=64
+            fi
             sync
+
             echo "完成"
         fi
 

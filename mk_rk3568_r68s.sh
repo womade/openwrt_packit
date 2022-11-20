@@ -5,6 +5,13 @@ source make.env
 source public_funcs
 init_work_env
 
+# 默认是否开启软件FLOWOFFLOAD
+SW_FLOWOFFLOAD=0
+# 默认是否开启硬件FLOWOFFLOAD
+HW_FLOWOFFLOAD=0
+# 默认是否开启SFE
+SFE_FLOW=1
+
 PLATFORM=rockchip
 SOC=rk3568
 BOARD=r68s
@@ -31,21 +38,15 @@ TGT_IMG="${WORK_DIR}/openwrt_${SOC}_${BOARD}_${OPENWRT_VER}_k${KERNEL_VERSION}${
 
 # patches、scripts
 ####################################################################
-REGULATORY_DB="${PWD}/files/regulatory.db.tar.gz"
 CPUSTAT_SCRIPT="${PWD}/files/cpustat"
 CPUSTAT_SCRIPT_PY="${PWD}/files/cpustat.py"
-CPUSTAT_PATCH="${PWD}/files/luci-admin-status-index-html.patch"
-CPUSTAT_PATCH_02="${PWD}/files/luci-admin-status-index-html-02.patch"
+INDEX_PATCH_HOME="${PWD}/files/index.html.patches"
 GETCPU_SCRIPT="${PWD}/files/getcpu"
 KMOD="${PWD}/files/kmod"
 KMOD_BLACKLIST="${PWD}/files/kmod_blacklist"
 
 FIRSTRUN_SCRIPT="${PWD}/files/first_run.sh"
-BOOT_CMD="${PWD}/files/boot.cmd"
-# files/boot.cmd compile with rk3568 u-boot
-BOOT_SCR="${PWD}/files/rk3568/boot.scr"
 
-PWM_FAN="${PWD}/files/pwm-fan.pllllllll"
 DAEMON_JSON="${PWD}/files/rk3568/daemon.json"
 
 TTYD="${PWD}/files/ttyd"
@@ -56,9 +57,6 @@ BANNER="${PWD}/files/banner"
 FMW_HOME="${PWD}/files/firmware"
 SMB4_PATCH="${PWD}/files/smb4.11_enable_smb1.patch"
 SYSCTL_CUSTOM_CONF="${PWD}/files/99-custom.conf"
-
-# 20200403 add
-SND_MOD="${PWD}/files/rk3568/snd-rk3568"
 
 # 20200709 add
 COREMARK="${PWD}/files/coremark.sh"
@@ -73,11 +71,11 @@ SYSFIXTIME_PATCH="${PWD}/files/sysfixtime.patch"
 SSL_CNF_PATCH="${PWD}/files/openssl_engine.patch"
 
 # 20201212 add
-BAL_CONFIG="${PWD}/files/rk3568/balance_irq"
+BAL_CONFIG="${PWD}/files/rk3568/r68s/balance_irq"
 
 # 20210307 add
 SS_LIB="${PWD}/files/ss-glibc/lib-glibc.tar.xz"
-SS_BIN="${PWD}/files/ss-glibc/armv8a_crypto/ss-bin-glibc.tar.xz"
+SS_BIN="${PWD}/files/ss-glibc/armv8.2a_crypto/ss-bin-glibc.tar.xz"
 JQ="${PWD}/files/jq"
 
 # 20210330 add
@@ -85,16 +83,16 @@ DOCKERD_PATCH="${PWD}/files/dockerd.patch"
 
 # 20200416 add
 FIRMWARE_TXZ="${PWD}/files/firmware_armbian.tar.xz"
-BOOTFILES_HOME="${PWD}/files/bootfiles/rockchip"
+BOOTFILES_HOME="${PWD}/files/bootfiles/rockchip/rk3568/r68s"
 GET_RANDOM_MAC="${PWD}/files/get_random_mac.sh"
-BOOTLOADER_IMG="${PWD}/files/rk3568/btld-rk3568.bin"
+BOOTLOADER_IMG="${PWD}/files/rk3568/r68s/bootloader.bin"
 
 # 20210618 add
 DOCKER_README="${PWD}/files/DockerReadme.pdf"
 
 # 20210704 add
 SYSINFO_SCRIPT="${PWD}/files/30-sysinfo.sh"
-FORCE_REBOOT="${PWD}/files/rk3328/reboot"
+FORCE_REBOOT="${PWD}/files/rk3568/reboot"
 
 # 20210923 add
 OPENWRT_KERNEL="${PWD}/files/openwrt-kernel"
@@ -107,18 +105,20 @@ DDBR="${PWD}/files/openwrt-ddbr"
 # 20220225 add
 SSH_CIPHERS="aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,chacha20-poly1305@openssh.com"
 SSHD_CIPHERS="aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr"
-# 20220804 add
-BOARD_SCRIPT1="${PWD}/files/rk3568/50-pcie_eth_up"
+# 20220927 add
+BOARD_HOME="${PWD}/files/rk3568/r68s/board.d"
+# 20221001 add
+MODULES_HOME="${PWD}/files/rk3568/modules.d"
 ####################################################################
 
 check_depends
 
 SKIP_MB=16
 BOOT_MB=160
-ROOTFS_MB=720
-SIZE=$((SKIP_MB + BOOT_MB + ROOTFS_MB))
+ROOTFS_MB=960
+SIZE=$((SKIP_MB + BOOT_MB + ROOTFS_MB + 1))
 create_image "$TGT_IMG" "$SIZE"
-create_partition "$TGT_DEV" "msdos" "$SKIP_MB" "$BOOT_MB" "ext4" "0" "-1" "btrfs"
+create_partition "$TGT_DEV" "gpt" "$SKIP_MB" "$BOOT_MB" "ext4" "0" "-1" "btrfs"
 make_filesystem "$TGT_DEV" "B" "ext4" "EMMC_BOOT" "R" "btrfs" "EMMC_ROOTFS1"
 mount_fs "${TGT_DEV}p1" "${TGT_BOOT}" "ext4"
 mount_fs "${TGT_DEV}p2" "${TGT_ROOT}" "btrfs" "compress=zstd:${ZSTD_LEVEL}"
@@ -129,19 +129,13 @@ extract_rockchip_boot_files
 
 echo "修改引导分区相关配置 ... "
 cd $TGT_BOOT
-[ -f $BOOT_CMD ] && cp $BOOT_CMD boot.cmd
-[ -f $BOOT_SCR ] && cp $BOOT_SCR boot.scr
-ln -sf ./dtb-${KERNEL_VERSION}/rockchip/rk3568-fastrhino-r68s*.dtb .
-cat > armbianEnv.txt <<EOF
-verbosity=7
-overlay_prefix=rockchip
+sed -e '/rootdev=/d' -i armbianEnv.txt
+sed -e '/rootfstype=/d' -i armbianEnv.txt
+sed -e '/rootflags=/d' -i armbianEnv.txt
+cat >> armbianEnv.txt <<EOF
 rootdev=UUID=${ROOTFS_UUID}
 rootfstype=btrfs
 rootflags=compress=zstd:${ZSTD_LEVEL}
-extraargs=usbcore.autosuspend=-1 net.ifnames=0
-extraboardargs=
-fdtfile=/dtb/rockchip/rk3568-fastrhino-r68s.dtb
-console=serial
 EOF
 echo "armbianEnv.txt -->"
 echo "==============================================================================="
