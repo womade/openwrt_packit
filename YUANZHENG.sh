@@ -18,7 +18,8 @@ sed -i 's/master/main/g' openwrt_flippy.sh
 # WHOAMI
 sed -i 's/flippy/Y-ZHENG/g' openwrt_flippy.sh
 
-# 修改版本号
+# 修改内核&版本号
 sed -i 's|OPENWRT_VER=".*"|OPENWRT_VER="'SN-$(date +%y.%m)'"|g' make.env
+sed -i 's/flippy/yuanzheng/g' make.env
 
 exit 0
