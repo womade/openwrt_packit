@@ -22,4 +22,8 @@ sed -i 's/flippy/Y-ZHENG/g' openwrt_flippy.sh
 sed -i 's|OPENWRT_VER=".*"|OPENWRT_VER="'SN-$(date +%y.%m)'"|g' make.env
 sed -i 's/flippy/yuanzheng/g' make.env
 
+
+sed -i 's|DISTRIB_REVISION_VALUE=".*"|DISTRIB_REVISION_VALUE="'SN-$(date +%y.%m)'"|g' openwrt_flippy.sh
+sed -i 's|DISTRIB_DESCRIPTION_VALUE="OpenWrt"|DISTRIB_DESCRIPTION_VALUE="'SuperNet'"|g' openwrt_flippy.sh
+
 exit 0
