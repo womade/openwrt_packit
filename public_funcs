@@ -22,6 +22,29 @@ get_random_mac ()
     fi
 }
 
+function get_openwrt_rootfs_archive() {
+	local home=$1
+	local src_homes="${home}/src1 ${home}/src2 ${home}"
+	for dir in $src_homes;do
+	    # OP_ROOT_TGZ可从环境变量引入
+            if [ -n "$OP_ROOT_TGZ" ];then
+	    	if [ -f "${dir}/${OP_ROOT_TGZ}" ];then
+		    echo "${dir}/${OP_ROOT_TGZ}"
+		    return
+		fi
+	    else
+		if [ -f "${dir}/openwrt-armvirt-64-default-rootfs.tar.gz" ];then
+		    echo "${dir}/openwrt-armvirt-64-default-rootfs.tar.gz"
+		    return
+	   	elif [ -f "${dir}/openwrt-armvirt-64-generic-rootfs.tar.gz" ];then
+		    echo "${dir}/openwrt-armvirt-64-generic-rootfs.tar.gz"
+		    return
+		fi
+	    fi
+    	done
+	echo "Openwrt_rootfs_archive_not_found!"
+}
+
 function check_file() {
     if [ ! -f "$1" ];then
         echo "文件: [$1] 不存在!"
@@ -135,10 +158,11 @@ function check_depends() {
         exit 1
     fi
 
+    # lsblk --version: from util-linux 2.39-dirty
     lsblk_version=$(lsblk --version|awk '{print $NF}' 2>/dev/null)
     if [ "$lsblk_version" != "" ];then
         m_v=$(echo ${lsblk_version} | cut -d '.' -f1)
-        s_v=$(echo ${lsblk_version} | cut -d '.' -f2)
+        s_v=$(echo ${lsblk_version} | cut -d '.' -f2 | tr -d '[a-zA-Z]|-')
         if [ $m_v -gt 2 ] || [ $m_v -eq 2 ] && [ $s_v -ge 33 ];then
             echo "check lsblk ok"
         else
@@ -1008,6 +1032,12 @@ EOF
 	if [ "${SOC}" == "rk3588" ];then
             echo "LOCK_KERNEL=${LOCK_KERNEL}" >> ./etc/flippy-openwrt-release
         fi
+
+        # only photonic need pcat-manager service
+        if [ "${BOARD}" != "photonicat" ];then
+            rm -f ./etc/rc.d/[SK]??pcat-manager 2>/dev/null
+            rm -f ./etc/init.d/pcat-manager 2>/dev/null
+        fi
     )
     cat $TGT_ROOT/etc/flippy-openwrt-release
     echo 
@@ -1077,6 +1107,7 @@ function copy_supplement_files() {
         [ -n "$WIRELESS_CONFIG" ] && [ -f $WIRELESS_CONFIG ] && cp -v $WIRELESS_CONFIG etc/config/
         [ -n "$FIX_CPU_FREQ" ] && [ -f $FIX_CPU_FREQ ] && cp -v $FIX_CPU_FREQ ./usr/sbin && chmod 755 ./usr/sbin/fixcpufreq.pl
         [ -n "$SYSFIXTIME_PATCH" ] && [ -f $SYSFIXTIME_PATCH ] && patch -p1 < $SYSFIXTIME_PATCH
+        [ -n "$NETWORK_SERVICE_PATCH" ] && [ -f $NETWORK_SERVICE_PATCH ] && patch -p1 < $NETWORK_SERVICE_PATCH
         [ -n "$FORCE_REBOOT" ] && [ -f $FORCE_REBOOT ] && cp -v $FORCE_REBOOT usr/sbin/ 
 
         [ -n "$GET_RANDOM_MAC" ] && [ -f ${GET_RANDOM_MAC} ] && cp -v ${GET_RANDOM_MAC} ./usr/bin/
@@ -1545,8 +1576,14 @@ function adjust_kernel_env() {
         fi    
 
 	if [ -n "${MODULES_HOME}" ] && [ -d "${MODULES_HOME}" ];then
-            echo "启用自定义的内核模块 ... "
+            echo "启用自定义的 soc 内核模块 ... "
 	    cp -v ${MODULES_HOME}/* ./etc/modules.d/
+            echo "完成"
+        fi
+
+	if [ -n "${BOARD_MODULES_HOME}" ] && [ -d "${BOARD_MODULES_HOME}" ];then
+            echo "启用自定义的 board 内核模块 ... "
+	    cp -v ${BOARD_MODULES_HOME}/* ./etc/modules.d/
             echo "完成"
         fi
 
@@ -1640,7 +1677,7 @@ function adjust_kernel_env() {
             echo "完成"
         fi
 
-        if [ "$SOC" == "rk3568" ];then
+        if [ "$SOC" == "rk3568" ] || [ "$SOC" == "rk3566" ];then
             echo -n "启用 GPU 驱动 ... "
             echo "panfrost" > ./etc/modules.d/panfrost
             echo "完成"

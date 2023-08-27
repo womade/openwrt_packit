@@ -21,8 +21,7 @@ check_file ${DTBS_TGZ}
 ###################################################################
 
 # Openwrt 
-OP_ROOT_TGZ="openwrt-armvirt-64-default-rootfs.tar.gz"
-OPWRT_ROOTFS_GZ="${PWD}/${OP_ROOT_TGZ}"
+OPWRT_ROOTFS_GZ=$(get_openwrt_rootfs_archive ${PWD})
 check_file ${OPWRT_ROOTFS_GZ}
 echo "Use $OPWRT_ROOTFS_GZ as openwrt rootfs!"
 
@@ -102,7 +101,7 @@ DDBR="${PWD}/files/openwrt-ddbr"
 SSH_CIPHERS="aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,chacha20-poly1305@openssh.com"
 SSHD_CIPHERS="aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr"
 # 20221001 add
-MODULES_HOME="${PWD}/files/rk3588/modules.d"
+MODULES_HOME="${PWD}/files/rk3328/modules.d"
 ####################################################################
 
 check_depends

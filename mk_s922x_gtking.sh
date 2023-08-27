@@ -25,8 +25,7 @@ export K510
 ###########################################################################
 
 # Openwrt root 源文件
-OP_ROOT_TGZ="openwrt-armvirt-64-default-rootfs.tar.gz"
-OPWRT_ROOTFS_GZ="${PWD}/${OP_ROOT_TGZ}"
+OPWRT_ROOTFS_GZ=$(get_openwrt_rootfs_archive ${PWD})
 check_file ${OPWRT_ROOTFS_GZ}
 echo "Use $OPWRT_ROOTFS_GZ as openwrt rootfs!"
 
@@ -173,6 +172,9 @@ FDT=/dtb/amlogic/meson-g12b-gtking-pro.dtb
 
 # Khadas vim3
 #FDT=/dev/amlogic/meson-g12b-a311d-khadas-vim3.dtb
+
+# Ali CT2000
+#FDT=/dev/amlogic/meson-g12b-ali-ct2000.dtb
 
 APPEND=root=UUID=${ROOTFS_UUID} rootfstype=btrfs rootflags=compress=zstd:${ZSTD_LEVEL} console=ttyAML0,115200n8 console=tty0 no_console_suspend consoleblank=0 fsck.fix=yes fsck.repair=yes net.ifnames=0 cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory swapaccount=1
 EOF

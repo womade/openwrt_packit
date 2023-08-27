@@ -421,7 +421,7 @@ config mount
         option enabled '1'
         option enabled_fsck '0'
         option fstype 'vfat'
-                
+
 EOF
 (
     cd etc/rc.d
@@ -583,13 +583,20 @@ cat >uEnv.txt <<EOF
 LINUX=/zImage
 INITRD=/uInitrd
 
-# Example: 
+# Example:
 #   FDT=/dtb/allwinner/sun50i-h6-vplus-cloud.dtb
 #   FDT=/dtb/allwinner/sun50i-h6-vplus-cloud-2ghz.dtb
 FDT=/dtb/allwinner/${MYDTB_FDTFILE}
 
 APPEND=root=UUID=${NEW_ROOT_UUID} rootfstype=btrfs rootflags=compress=zstd:${ZSTD_LEVEL} console=ttyS0,115200n8 no_console_suspend consoleblank=0 fsck.fix=yes fsck.repair=yes net.ifnames=0 cgroup_enable=cpuset cgroup_memory=1 cgroup_enable=memory swapaccount=1
 EOF
+
+# Compatible with armbianEnv.txt file
+[[ -f "armbianEnv.txt" ]] && {
+    echo "Update armbianEnv.txt settings."
+    sed -i "s|^rootdev=.*|rootdev=UUID=${NEW_ROOT_UUID}|g" armbianEnv.txt
+    rm -f uEnv.txt
+}
 
 sync
 echo "done"
@@ -600,6 +607,7 @@ umount -f ${P1} ${P2} 2>/dev/null
 losetup -D 2>/dev/null
 rmdir ${P1} ${P2} 2>/dev/null
 rm -f ${IMG_NAME} 2>/dev/null
+rm -f sha256sums 2>/dev/null
 sync
 
 echo "Successfully updated, automatic restarting..."

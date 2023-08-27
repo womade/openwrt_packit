@@ -8,6 +8,8 @@ init_work_env
 PLATFORM=rockchip
 SOC=rk3588
 BOARD=h88k
+
+# 新增参数：若SUBVER=25, 则表示此固件为双2.5G网卡(默认是2.5G+1G)
 SUBVER=$1
 
 if [ -n "$RK3588_KERNEL_VERSION" ];then
@@ -27,13 +29,17 @@ check_file ${DTBS_TGZ}
 ###################################################################
 
 # Openwrt 
-OP_ROOT_TGZ="openwrt-armvirt-64-default-rootfs.tar.gz"
-OPWRT_ROOTFS_GZ="${PWD}/${OP_ROOT_TGZ}"
+OPWRT_ROOTFS_GZ=$(get_openwrt_rootfs_archive ${PWD})
 check_file ${OPWRT_ROOTFS_GZ}
 echo "Use $OPWRT_ROOTFS_GZ as openwrt rootfs!"
 
 # Target Image
-TGT_IMG="${WORK_DIR}/openwrt_${SOC}_${BOARD}_${OPENWRT_VER}_k${KERNEL_VERSION}${SUBVER}.img"
+if [ "$SUBVER" == "25" ];then
+    TGT_IMG="${WORK_DIR}/openwrt_${SOC}_${BOARD}_${OPENWRT_VER}_k${KERNEL_VERSION}_${SUBVER}.img"
+else
+    BOARD=ak88
+    TGT_IMG="${WORK_DIR}/openwrt_${SOC}_${BOARD}_${OPENWRT_VER}_k${KERNEL_VERSION}.img"
+fi
 
 # patches、scripts
 ####################################################################
@@ -109,6 +115,12 @@ PWM_FAN="${PWD}/files/rk3588/h88k/pwm-fan.pl"
 MODULES_HOME="${PWD}/files/rk3588/modules.d"
 # 20221022
 BOARD_HOME="${PWD}/files/rk3588/h88k/board.d"
+# 20230801 add
+WIRELESS_CONFIG="${PWD}/files/rk3588/h88k/wireless"
+# 20230801 add
+BOARD_MODULES_HOME="${PWD}/files/rk3588/h88k/modules.d"
+# 20230801 add
+NETWORK_SERVICE_PATCH="${PWD}/files/rk3588/h88k/network.patch"
 ####################################################################
 
 check_depends
@@ -132,6 +144,10 @@ cd $TGT_BOOT
 sed -e '/rootdev=/d' -i armbianEnv.txt
 sed -e '/rootfstype=/d' -i armbianEnv.txt
 sed -e '/rootflags=/d' -i armbianEnv.txt
+if [ "$SUBVER" == "25" ];then
+	echo "提示：此固件为双2.5g网卡版本！"
+	sed -e 's/^overlays=/overlays=disable-gmac0 /' -i armbianEnv.txt
+fi
 cat >> armbianEnv.txt <<EOF
 rootdev=UUID=${ROOTFS_UUID}
 rootfstype=btrfs
